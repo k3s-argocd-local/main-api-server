@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_REPOSITORY: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/main-api-server
+  MANIFEST_REPO: k3s-argocd-local/k8s-manifests
+  MANIFEST_PATH: base
+
+jobs:
+  build-and-update-manifest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout application repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Test
+        run: ./gradlew test --no-daemon
+
+      - name: Build jar
+        run: ./gradlew clean build -x test --no-daemon
+
+      - name: Set Docker image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_REPOSITORY }}:latest
+
+      - name: Checkout manifest repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MANIFEST_REPO }}
+          token: ${{ secrets.MANIFEST_REPO_TOKEN }}
+          path: manifest-repo
+
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update manifest image tag
+        working-directory: manifest-repo/${{ env.MANIFEST_PATH }}
+        run: |
+          kustomize edit set image docker.io/your-dockerhub-username/main-api-server=${{ env.IMAGE_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+
+      - name: Commit and push manifest changes
+        working-directory: manifest-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.MANIFEST_PATH }}/kustomization.yaml
+          git commit -m "chore: update main-api-server image to ${{ steps.meta.outputs.tag }}" || exit 0
+          git push
