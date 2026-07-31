@@ -18,7 +18,7 @@ public class ApiController {
 
 	@GetMapping("/version")
 	public String version() {
-		return version + ".test1";
+		return version + ".test2";
 	}
 
 	@GetMapping("/health")
