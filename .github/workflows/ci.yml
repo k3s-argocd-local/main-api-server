@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.MANIFEST_REPO }}
-          token: ${{ secrets.MANIFEST_REPO_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
           path: manifest-repo
 
       - name: Set up Kustomize
