@@ -18,7 +18,7 @@ public class ApiController {
 
 	@GetMapping("/version")
 	public String version() {
-		return version + ".test-live-cicd";
+		return version + ".test-zero-downtime-deployment";
 	}
 
 	@GetMapping("/health")
