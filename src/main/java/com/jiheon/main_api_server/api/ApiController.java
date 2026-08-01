@@ -18,7 +18,7 @@ public class ApiController {
 
 	@GetMapping("/version")
 	public String version() {
-		return version + ".test-zero-downtime-deployment";
+		return version + ".test-zero-downtime-deployment-1";
 	}
 
 	@GetMapping("/health")
